@@ -1,0 +1,59 @@
+name: Build JSON & Deploy Pages
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+
+      - name: Run converter
+        run: |
+          chmod +x scripts/sheets_to_json.py || true
+          python3 scripts/sheets_to_json.py
+
+      # Optional: eine sehr einfache Indexseite erzeugen
+      - name: Create index.html
+        run: |
+          cat > index.html <<'HTML'
+          <!doctype html>
+          <meta charset="utf-8">
+          <title>FootballToday Data</title>
+          <h1>FootballToday Data</h1>
+          <ul>
+            <li><a href="data/players.json">players.json</a></li>
+            <li><a href="data/player_numbers.json">player_numbers.json</a></li>
+            <li><a href="data/analysis.json">analysis.json</a></li>
+            <li><a href="data/index.json">index.json</a> (Übersicht)</li>
+          </ul>
+          HTML
+
+      - name: Upload artifact for Pages
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: .
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
